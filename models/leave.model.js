@@ -1,3 +1,4 @@
+const { Int32 } = require('mongodb');
 const mongoose = require('mongoose')
 
 const Leave= mongoose.Schema({
@@ -30,8 +31,8 @@ const Leave= mongoose.Schema({
     userId:{
         type:String,
         default:""
-    }
-
+    },
+    
 },
 {
     timestamps:true,
