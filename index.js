@@ -474,10 +474,12 @@ app.post('/api/workload-add', async (req, res) => {
 });
 
 // Update leave status by user ID
-app.put('/api/update-leave-status/', async (req, res) => {
+app.put('/api/update-leave-status/:id', async (req, res) => {
     try {
-        const { leaveStatus, userId } = req.body;
-        const leave = await Leave.findOneAndUpdate({ userId }, { leaveStatus:leaveStatus }, { new: true });
+        const { leaveStatus } = req.body;
+        const { id } = req.params;
+        
+        const leave = await Leave.findOneAndUpdate({ _id: id }, { leaveStatus: leaveStatus }, { new: true });
         
         if (!leave) {
             return res.status(404).json({ message: 'Leave not found' });
@@ -488,6 +490,7 @@ app.put('/api/update-leave-status/', async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 });
+
 
 
 //Workload 
@@ -535,3 +538,31 @@ app.post('/api/workload/schedule', (req, res) => {
 
 // Route to handle user input for start and end date
 
+
+
+
+app.put('/leave/:id/cancel', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Check if leave exists
+        const leave = await Leave.findById(id);
+        if (!leave) {
+            return res.status(404).json({ message: 'Leave not found' });
+        }
+
+        // Check if leave is already cancelled
+        if (leave.leaveStatus === 'Cancelled') {
+            return res.status(400).json({ message: 'Leave is already cancelled' });
+        }
+
+        // Update leave status to cancelled
+        leave.leaveStatus = 'Cancelled';
+        await leave.save();
+
+        res.status(200).json({ message: 'Leave cancelled successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
