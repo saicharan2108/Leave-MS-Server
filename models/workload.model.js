@@ -1,16 +1,40 @@
 const mongoose = require('mongoose');
 
-const WorkloadSchema = mongoose.Schema({
-    id:{
-        type:'String'
+// Define the schema for the workload data
+const workLoadSchema = new mongoose.Schema({
+    day: {
+        type: String,
     },
-    workload: {
-        type: Array,
+    date: {
+        type: String,
+    },
+    period: {
+        type: String,
+    },
+    class: {
+        type: String,
+    },
+    sub: {
+        type: String,
+    },
+    assign: {
+        type: String,
+    },
+    userId: {
+        type: String, // Assuming userId is a string
+    },
+    username: {
+        type: String,
+    },
+    status: {
+        type: String,
+        default:"Pending"
     }
 }, {
     timestamps: true
 });
 
-const Workload = mongoose.model('Workload', WorkloadSchema);
+// Define the MongoDB model
+const WorkLoad = mongoose.model('WorkLoad', workLoadSchema);
 
-module.exports = Workload;
+module.exports = WorkLoad;

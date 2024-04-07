@@ -5,7 +5,7 @@ const cors = require('cors');
 const LoginSchema = require('./models/login.model');
 const Register = require('./models/register.model');
 const Leave = require("./models/leave.model")
-const Workload = require('./models/workload.model');
+const WorkLoad = require('./models/workload.model');
 const app = express();
 const uri = "mongodb+srv://pavankumar:pavankumar2024@cluster0.vnzza6i.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 mongoose.connect(uri)
@@ -493,48 +493,97 @@ app.put('/api/update-leave-status/:id', async (req, res) => {
 
 
 
-//Workload 
-// Function to get weekdays between two dates
+// //Workload 
+// // Function to get weekdays between two dates
+// function calculateWeekdays(startDate, endDate) {
+//     const weekdays = [];
+//     let currentDate = new Date(startDate);
+//     endDate = new Date(endDate);
+//     while (currentDate <= endDate) {
+//         if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+//             weekdays.push(currentDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase());
+//         }
+//         currentDate.setDate(currentDate.getDate() + 1);
+//     }
+//     return weekdays;
+// }
+
+// app.post('/api/workload/schedule', (req, res) => {
+//     const { userId, startDate, endDate } = req.body;
+//     const weekdays = calculateWeekdays(startDate, endDate);
+//     console.log(weekdays)
+//     const userLeaveData = schedule[userId];
+
+//     if (!userLeaveData) {
+//         res.status(400).json({ error: 'Invalid userId' });
+//         return;
+//     }
+
+//     const result = {};
+//     weekdays.forEach(weekday => {
+//         const periods = Object.keys(userLeaveData).filter(key => key.includes(weekday));
+       
+
+//         if (periods.length > 0) {
+//             result[weekday] = periods.map(period => ({
+//                 period: period.slice(-1),
+//                 class: userLeaveData[period].class,
+//                 sub: userLeaveData[period].sub
+//             }));
+//         }
+//     });
+
+//     res.json(result);
+// });
+
+
 function calculateWeekdays(startDate, endDate) {
     const weekdays = [];
     let currentDate = new Date(startDate);
     endDate = new Date(endDate);
+  
     while (currentDate <= endDate) {
-        if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
-            weekdays.push(currentDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase());
-        }
-        currentDate.setDate(currentDate.getDate() + 1);
+      if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+        weekdays.push({
+          weekday: currentDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+          date: currentDate.toLocaleDateString('en-US') // Full date format
+        });
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
     }
     return weekdays;
-}
+  }
 
-app.post('/api/workload/schedule', (req, res) => {
+
+  app.post('/api/workload/schedule', (req, res) => {
     const { userId, startDate, endDate } = req.body;
     const weekdays = calculateWeekdays(startDate, endDate);
-    console.log(weekdays)
+  
     const userLeaveData = schedule[userId];
-
+  
     if (!userLeaveData) {
-        res.status(400).json({ error: 'Invalid userId' });
-        return;
+      res.status(400).json({ error: 'Invalid userId' });
+      return;
     }
-
+  
     const result = {};
-    weekdays.forEach(weekday => {
-        const periods = Object.keys(userLeaveData).filter(key => key.includes(weekday));
-       
-
-        if (periods.length > 0) {
-            result[weekday] = periods.map(period => ({
-                period: period.slice(-1),
-                class: userLeaveData[period].class,
-                sub: userLeaveData[period].sub
-            }));
-        }
+    weekdays.forEach(({ weekday, date }) => { // Destructure directly in forEach
+      const periods = Object.keys(userLeaveData).filter(key => key.includes(weekday));
+  
+      if (periods.length > 0) {
+        result[date] = periods.map(period => ({ // Create date-indexed result
+            day:weekday,
+          period: period.slice(-1),
+          class: userLeaveData[period].class,
+          sub: userLeaveData[period].sub
+        }));
+      }
     });
-
+  
     res.json(result);
-});
+    console.log(result);
+  });
+  
 
 // Route to handle user input for start and end date
 
@@ -564,5 +613,74 @@ app.put('/leave/:id/cancel', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+
+
+// Workload Saver 
+app.post('/api/workload/save', async (req, res) => {
+    try {
+        const workload = await WorkLoad.create(req.body);
+        res.status(200).json(workload);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+
+app.get('/api/workload/requests', async (req, res) => {
+    try {
+        const avleaves = await WorkLoad.find({});
+        res.status(200).json(avleaves);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// app.post('/api/workload/requests/user', async (req, res) => {
+//     try {
+//         const {userId} = req.body 
+//         const avleaves = await WorkLoad.find({assign:userId}, {status:'pending'});
+//         res.status(200).json(avleaves);
+//     } catch (error) {
+//         res.status(500).json({ message: error.message });
+//     }
+// });
+
+app.post('/api/workload/search', async (req, res) => {
+    const { userId } = req.body;
+
+    try {
+        // Find documents in the WorkLoad model where assign matches userId and status is 'Pending'
+        const workloads = await WorkLoad.find({ assign: userId, status: 'Pending' });
+        console.log("Work Load Final", workloads);
+
+        if (workloads.length === 0) {
+            return res.status(404).json({ message: "No documents found with the provided assigned value and status 'Pending'" });
+        }
+
+        res.status(200).json(workloads);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+
+
+app.put('/api/update-request-status/:id', async (req, res) => {
+    try {
+        const { status } = req.body;
+        const { id } = req.params;
+        
+        const leave = await WorkLoad.findOneAndUpdate({ _id: id }, { status: status }, { new: true });
+        
+        if (!leave) {
+            return res.status(404).json({ message: 'Leave not found' });
+        }
+
+        res.status(200).json(leave);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 });
