@@ -827,6 +827,8 @@ const calculateTotalDays = (startDate, endDate) => {
 
 // Function to update remaining leave count for the user
 const updateRemainingLeave = async (userId, leaveType, totalDays) => {
+    console.log(totalDays)
+    console.log(leaveType)
     const user = await Register.findOne({ userId });
     if (!user) {
         throw new Error(`User not found with ID: ${userId}`);
@@ -856,20 +858,38 @@ const updateRemainingLeave = async (userId, leaveType, totalDays) => {
     await user.save();
 };
 
-// Route to approve leave request
-app.put('/api/update-leave-status/:id', async (req, res) => {
+
+
+// Update leave status and approve leave request
+app.put('/api/update-leave/:id', async (req, res) => {
     try {
         const { leaveStatus, startDate, endDate, leaveType, userId } = req.body;
         const totalDays = calculateTotalDays(startDate, endDate);
 
-        // Update remaining leave count for the user
-        await updateRemainingLeave(userId, leaveType, totalDays);
+        if (leaveStatus !== undefined) {
+            // Update leave status by leave ID
+            const leave = await Leave.findOneAndUpdate({ _id: req.params.id }, { leaveStatus }, { new: true });
+            if (!leave) {
+                return res.status(404).json({ message: 'Leave not found' });
+            }
 
-        // Update leave status in the database
-        // You can implement your logic here to update the status as approved/denied
-        // For demonstration purpose, I'm assuming the leave status is updated directly in the database
+            // Update remaining leave count for the user
+            if (leaveStatus === 'Approved') {
+                await updateRemainingLeave(userId, leaveType, totalDays);
+            }
 
-        res.status(200).json({ message: 'Leave status updated successfully' });
+            return res.status(200).json(leave);
+
+        } else if (startDate && endDate && leaveType && userId) {
+            // Update remaining leave count for the user
+            await updateRemainingLeave(userId, leaveType, totalDays);
+
+            // Implement your logic here to update the leave status as approved/denied in the database
+
+            return res.status(200).json({ message: 'Leave status updated successfully' });
+        } else {
+            return res.status(400).json({ message: 'Invalid request' });
+        }
     } catch (error) {
         console.error('Error updating leave status:', error.message);
         res.status(500).json({ error: 'Internal server error' });
