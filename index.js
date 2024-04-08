@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-
+const Designations = require('./models/leaverules.model.js');
 const LoginSchema = require('./models/login.model');
 const Register = require('./models/register.model');
 const Leave = require("./models/leave.model")
@@ -622,6 +622,7 @@ app.put('/leave/:id/cancel', async (req, res) => {
 app.post('/api/workload/save', async (req, res) => {
     try {
         const workload = await WorkLoad.create(req.body);
+        console.log("Sample",workload)
         res.status(200).json(workload);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -682,5 +683,195 @@ app.put('/api/update-request-status/:id', async (req, res) => {
         res.status(200).json(leave);
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+});
+
+//ADMIN
+//Getting Designation and counts
+app.get('/api/designations', async (req, res) => {
+    try {
+        const allDes = await Designations.find({});
+        res.status(200).json(allDes);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+
+
+//Add Designation & Count
+app.post('/api/designations/add', async (req, res) => {
+    try {
+        const allDes = await Designations.create(req.body);
+        res.status(200).json(allDes);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+/// Update leave counts for a specific designation
+app.put('/api/designations/:id/leave', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { casualLeave, earnLeave, medicalLeave, maternityLeave, specialCasualLeave } = req.body;
+        const updatedDesignation = await Designations.findByIdAndUpdate(id, {
+            $set: {
+                totalCasual: casualLeave,
+                totalEarn: earnLeave,
+                totalMedical: medicalLeave,
+                totalMaternity: maternityLeave,
+                totalSpecialCasual: specialCasualLeave
+            }
+        }, { new: true });
+        if (!updatedDesignation) {
+            return res.status(404).json({ message: 'Designation not found' });
+        }
+        res.status(200).json(updatedDesignation);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Modify your backend API endpoint to fetch leave counts for a specific designation based on position
+app.post('/api/designations/leave', async (req, res) => {
+    try {
+        const { position } = req.body;
+        console.log(position)
+        const designation = await Designations.findOne({ designation: position });
+
+        if (!designation) {
+            return res.status(404).json({ message: 'Designation not found' });
+        }
+        // Extract leave counts from the designation object
+        const { totalCasual, totalEarn, totalMedical, totalMaternity, totalSpecialCasual } = designation;
+        // Return leave counts
+        res.status(200).json({
+            totalCasual,
+            totalEarn,
+            totalMedical,
+            totalMaternity,
+            totalSpecialCasual
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+
+app.get('/api/users/leave-info', async (req, res) => {
+    try {
+        // Fetch users with positions "Faculty" or "HOD"
+        const users = await Register.find({ $or: [{ position: "Faculty" }, { position: "HOD" }] });
+        
+        // Array to store leave information for each user
+        const leaveInfo = [];
+
+        // Iterate through each user
+        for (const user of users) {
+            const { position, casualLeave, earnLeave, medicalLeave, maternityLeave, specialCasualLeave } = user;
+            
+            // Query Designations model to fetch total leave counts based on user's position
+            const designation = await Designations.findOne({ designation: position });
+            if (!designation) {
+                throw new Error(`Designation not found for user: ${user.username}`);
+            }
+
+            // Calculate remaining leave counts
+            const remainingCasual = designation.totalCasual - (casualLeave || 0);
+            const remainingEarn = designation.totalEarn - (earnLeave || 0);
+            const remainingMedical = designation.totalMedical - (medicalLeave || 0);
+            const remainingMaternity = designation.totalMaternity - (maternityLeave || 0);
+            const remainingSpecialCasual = designation.totalSpecialCasual - (specialCasualLeave || 0);
+
+            // Construct leave information object for the user
+            const userLeaveInfo = {
+                id: user.userId,
+                name: user.username,
+                remaining: {
+                    casualLeave: remainingCasual,
+                    earnLeave: remainingEarn,
+                    medicalLeave: remainingMedical,
+                    maternityLeave: remainingMaternity,
+                    specialCasualLeave: remainingSpecialCasual
+                },
+                total: {
+                    casualLeave: designation.totalCasual,
+                    earnLeave: designation.totalEarn,
+                    medicalLeave: designation.totalMedical,
+                    maternityLeave: designation.totalMaternity,
+                    specialCasualLeave: designation.totalSpecialCasual
+                }
+            };
+
+            // Push leave information to the array
+            leaveInfo.push(userLeaveInfo);
+        }
+
+        // Send leave information as response
+        res.status(200).json(leaveInfo);
+    } catch (error) {
+        console.error("Error fetching and aggregating leave information:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+
+
+// / Function to calculate total days between start and end date
+const calculateTotalDays = (startDate, endDate) => {
+    const oneDay = 24 * 60 * 60 * 1000; // hours * minutes * seconds * milliseconds
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return Math.round(Math.abs((start - end) / oneDay)) + 1; // Add 1 to include both start and end date
+};
+
+// Function to update remaining leave count for the user
+const updateRemainingLeave = async (userId, leaveType, totalDays) => {
+    const user = await Register.findOne({ userId });
+    if (!user) {
+        throw new Error(`User not found with ID: ${userId}`);
+    }
+
+    // Update remaining leave count based on leave type
+    switch (leaveType) {
+        case 'Casual Leave':
+            user.casualLeave -= totalDays;
+            break;
+        case 'Earn Leave':
+            user.earnLeave -= totalDays;
+            break;
+        case 'Medical Leave':
+            user.medicalLeave -= totalDays;
+            break;
+        case 'Maternity Leave':
+            user.maternityLeave -= totalDays;
+            break;
+        case 'Special Casual Leave':
+            user.specialCasualLeave -= totalDays;
+            break;
+        default:
+            throw new Error(`Invalid leave type: ${leaveType}`);
+    }
+
+    await user.save();
+};
+
+// Route to approve leave request
+app.put('/api/update-leave-status/:id', async (req, res) => {
+    try {
+        const { leaveStatus, startDate, endDate, leaveType, userId } = req.body;
+        const totalDays = calculateTotalDays(startDate, endDate);
+
+        // Update remaining leave count for the user
+        await updateRemainingLeave(userId, leaveType, totalDays);
+
+        // Update leave status in the database
+        // You can implement your logic here to update the status as approved/denied
+        // For demonstration purpose, I'm assuming the leave status is updated directly in the database
+
+        res.status(200).json({ message: 'Leave status updated successfully' });
+    } catch (error) {
+        console.error('Error updating leave status:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
