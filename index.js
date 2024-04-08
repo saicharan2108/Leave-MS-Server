@@ -836,7 +836,7 @@ const updateRemainingLeave = async (userId, leaveType, totalDays) => {
 
     // Update remaining leave count based on leave type
     switch (leaveType) {
-        case 'Casual Leave':
+        case 'Casual':
             user.casualLeave -= totalDays;
             break;
         case 'Earn Leave':
@@ -845,10 +845,10 @@ const updateRemainingLeave = async (userId, leaveType, totalDays) => {
         case 'Medical Leave':
             user.medicalLeave -= totalDays;
             break;
-        case 'Maternity Leave':
+        case 'Maternity':
             user.maternityLeave -= totalDays;
             break;
-        case 'Special Casual Leave':
+        case 'Special':
             user.specialCasualLeave -= totalDays;
             break;
         default:
