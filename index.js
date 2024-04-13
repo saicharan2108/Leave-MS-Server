@@ -387,10 +387,8 @@ app.get('/api/users', async (req, res) => {
 
 // Other routes for updating, deleting, etc. (Similar to what you already have)
 app.post('/api/apply-leave', async (req, res) => {
-
  
     try {
-
         const leave = await Leave.create(req.body);
         res.status(201).json(leave);
 
@@ -710,10 +708,43 @@ app.post('/api/designations/add', async (req, res) => {
 });
 
 /// Update leave counts for a specific designation
+// app.put('/api/designations/:id/leave', async (req, res) => {
+//     try {
+//         const { id } = req.params;
+//         const { casualLeave, earnLeave, medicalLeave, maternityLeave, specialCasualLeave } = req.body;
+//         const updatedDesignation = await Designations.findByIdAndUpdate(id, {
+//             $set: {
+//                 totalCasual: casualLeave,
+//                 totalEarn: earnLeave,
+//                 totalMedical: medicalLeave,
+//                 totalMaternity: maternityLeave,
+//                 totalSpecialCasual: specialCasualLeave
+//             }
+//         }, { new: true });
+//         if (!updatedDesignation) {
+//             return res.status(404).json({ message: 'Designation not found' });
+//         }
+//         res.status(200).json(updatedDesignation);
+//     } catch (error) {
+//         res.status(500).json({ message: error.message });
+//     }
+// });
+
+
 app.put('/api/designations/:id/leave', async (req, res) => {
+    console.log("API Called For upating counts")
     try {
         const { id } = req.params;
         const { casualLeave, earnLeave, medicalLeave, maternityLeave, specialCasualLeave } = req.body;
+
+        // Fetch the designation details including its name
+        const designation = await Designations.findById(id);
+        if (!designation) {
+            return res.status(404).json({ message: 'Designation not found' });
+        }
+        const designationName = designation.designation;
+
+        // Update leave counts for the designation
         const updatedDesignation = await Designations.findByIdAndUpdate(id, {
             $set: {
                 totalCasual: casualLeave,
@@ -723,9 +754,26 @@ app.put('/api/designations/:id/leave', async (req, res) => {
                 totalSpecialCasual: specialCasualLeave
             }
         }, { new: true });
+
         if (!updatedDesignation) {
             return res.status(404).json({ message: 'Designation not found' });
         }
+
+        // Update leave counts for all users with matching positions
+        const usersToUpdate = await Register.find({ position: { $regex: new RegExp(designationName, 'i') } });
+        const promises = usersToUpdate.map(async (user) => {
+            await Register.findByIdAndUpdate(user._id, {
+                $set: {
+                    casualLeave: casualLeave,
+                    earnLeave: earnLeave,
+                    medicalLeave: medicalLeave,
+                    maternityLeave: maternityLeave,
+                    specialCasualLeave: specialCasualLeave
+                }
+            });
+        });
+        await Promise.all(promises);
+
         res.status(200).json(updatedDesignation);
     } catch (error) {
         res.status(500).json({ message: error.message });

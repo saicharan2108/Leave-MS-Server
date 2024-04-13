@@ -26,6 +26,7 @@ const Leave= mongoose.Schema({
     },
     leaveStatus:{
         type:String,
+        default:""
     },
     userId:{
         type:String,
