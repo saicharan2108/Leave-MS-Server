@@ -440,14 +440,17 @@ app.post('/get/leaves', async (req, res) => {
 });
 
 
-app.get('/get/pending/leaves', async (req, res) => {
+app.get('/get/pending/leaves/:department', async (req, res) => {
     try {
-        const avleaves = await Leave.find({leaveStatus:'Pending'});
+        const department = req.params.department;
+        const avleaves = await Leave.find({ department: department, leaveStatus: 'Pending' });
+        console.log(avleaves)
         res.status(200).json(avleaves);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
+
 
 app.get('/get/hodapproved/leaves', async (req, res) => {
     try {
