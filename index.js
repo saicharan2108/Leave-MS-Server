@@ -809,10 +809,12 @@ app.post('/api/designations/leave', async (req, res) => {
 });
 
 
-app.get('/api/users/leave-info', async (req, res) => {
+app.get('/api/users/leave-info/:department', async (req, res) => {
     try {
-        // Fetch users with positions "Faculty" or "HOD"
-        const users = await Register.find({ $or: [{ position: "Faculty" }, { position: "HOD" }] });
+        const department = req.params.department; // Extract department from request parameter
+
+        // Fetch users with positions "Faculty" or "HOD" and belonging to the specified department
+        const users = await Register.find({ $and: [{ $or: [{ position: "Faculty" }, { position: "HOD" }] }, { department: department }] });
         
         // Array to store leave information for each user
         const leaveInfo = [];
@@ -865,6 +867,7 @@ app.get('/api/users/leave-info', async (req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 });
+
 
 
 
