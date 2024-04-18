@@ -9,6 +9,10 @@ const Login= mongoose.Schema({
         type:String,
         required:[true, "Please enter a password"],
     },
+    department:{
+        type:String,
+        required:[true, "Please select a department"],
+    },
 },
 {
     timestamps:true,

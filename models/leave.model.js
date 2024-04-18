@@ -20,6 +20,10 @@ const Leave= mongoose.Schema({
         type:String,
         default:""
     },
+    department:{
+        type:String,
+        default:""
+    },
     reason:{
         type:String,
         default:''

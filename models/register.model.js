@@ -9,6 +9,10 @@ const RegisterSchema = mongoose.Schema({
         type: String,
         required: [true, "Please enter gmail"],
     },
+    department: {
+        type: String,
+        required: [true, "Please select a department"],
+    },
     password: {
         type: String,
         required: [true, "Please enter a password"],
