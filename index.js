@@ -305,6 +305,28 @@ const schedule = {
           "SAT5": { "class": "6TH sem IT", "sub": "ML-A2-LAB" },
           "SAT6": { "class": "6TH sem IT", "sub": "ML-A2-LAB" }
         },
+        "3549": {
+            "MON2": { "class": "6TH sem IT", "sub": "DWDM-B" },
+            "TUE2": { "class": "6TH sem IT", "sub": "DWDM-B" },
+            "TUE4": { "class": "4TH sem IT", "sub": "DAA-A" },
+            "WED3": { "class": "6TH sem IT", "sub": "DWDM-B" },
+            "THU1": { "class": "4TH sem IT", "sub": "DAA-A" },
+            "FRI5": { "class": "4TH sem IT", "sub": "DAA-A" },
+            "FRI6": { "class": "4TH sem IT", "sub": "DAA-A" },
+            "SAT4": { "class": "4TH sem IT", "sub": "DAA-A" },
+            "SAT6": { "class": "6TH sem IT", "sub": "DWDM-B" }
+          },
+          "35549": {
+            "MON2": { "class": "6TH sem IT", "sub": "DWDM-B" },
+            "TUE2": { "class": "6TH sem IT", "sub": "DWDM-B" },
+            "TUE4": { "class": "4TH sem IT", "sub": "DAA-A" },
+            "WED3": { "class": "6TH sem IT", "sub": "DWDM-B" },
+            "THU1": { "class": "4TH sem IT", "sub": "DAA-A" },
+            "FRI5": { "class": "4TH sem IT", "sub": "DAA-A" },
+            "FRI6": { "class": "4TH sem IT", "sub": "DAA-A" },
+            "SAT4": { "class": "4TH sem IT", "sub": "DAA-A" },
+            "SAT6": { "class": "6TH sem IT", "sub": "DWDM-B" }
+          },
         "BEC071003": {
           "MON1": { "class": "6TH sem IT", "sub": "PP" },
           "MON5": { "class": "4TH sem IT", "sub": "DBMS" },
@@ -322,10 +344,7 @@ const schedule = {
           "SAT4": { "class": "4TH sem IT", "sub": "DBMS" }
         }
       }
-      
-  
- 
-  
+
 
 app.get('/', (req, res) => {
     res.send("Sample GET request API");
@@ -868,6 +887,64 @@ app.get('/api/users/leave-info/:department', async (req, res) => {
     }
 });
 
+app.get('/api/users/leave-info', async (req, res) => {
+    try {
+        const department = req.params.department; // Extract department from request parameter
+
+        // Fetch users with positions "Faculty" or "HOD" and belonging to the specified department
+        const users = await Register.find({ $and: [{ $or: [{ position: "Faculty" }, { position: "HOD" }] }] });
+        
+        // Array to store leave information for each user
+        const leaveInfo = [];
+
+        // Iterate through each user
+        for (const user of users) {
+            const { position, casualLeave, earnLeave, medicalLeave, maternityLeave, specialCasualLeave } = user;
+            
+            // Query Designations model to fetch total leave counts based on user's position
+            const designation = await Designations.findOne({ designation: position });
+            if (!designation) {
+                throw new Error(`Designation not found for user: ${user.username}`);
+            }
+
+            // Calculate remaining leave counts
+            const remainingCasual = designation.totalCasual - (casualLeave || 0);
+            const remainingEarn = designation.totalEarn - (earnLeave || 0);
+            const remainingMedical = designation.totalMedical - (medicalLeave || 0);
+            const remainingMaternity = designation.totalMaternity - (maternityLeave || 0);
+            const remainingSpecialCasual = designation.totalSpecialCasual - (specialCasualLeave || 0);
+
+            // Construct leave information object for the user
+            const userLeaveInfo = {
+                id: user.userId,
+                name: user.username,
+                remaining: {
+                    casualLeave: remainingCasual,
+                    earnLeave: remainingEarn,
+                    medicalLeave: remainingMedical,
+                    maternityLeave: remainingMaternity,
+                    specialCasualLeave: remainingSpecialCasual
+                },
+                total: {
+                    casualLeave: designation.totalCasual,
+                    earnLeave: designation.totalEarn,
+                    medicalLeave: designation.totalMedical,
+                    maternityLeave: designation.totalMaternity,
+                    specialCasualLeave: designation.totalSpecialCasual
+                }
+            };
+
+            // Push leave information to the array
+            leaveInfo.push(userLeaveInfo);
+        }
+
+        // Send leave information as response
+        res.status(200).json(leaveInfo);
+    } catch (error) {
+        console.error("Error fetching and aggregating leave information:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
 
 
 
